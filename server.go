@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-zoo/bone"
 	"github.com/rs/cors"
 	"github.com/rs/xhandler"
 	"golang.org/x/net/context"
@@ -20,7 +21,7 @@ type myMiddleware struct {
 }
 
 func (h myMiddleware) ServeHTTPC(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	ctx = context.WithValue(ctx, "test", "world")
+	ctx = context.WithValue(ctx, "greeting", "world")
 	ctx = context.WithValue(ctx, requestIDKey, r.Header.Get("X-Request-ID"))
 	h.next.ServeHTTPC(ctx, w, r)
 }
@@ -49,18 +50,20 @@ func recoverMiddleware(next http.Handler) http.Handler {
 }
 
 func account(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	accountId := bone.GetValue(req, "id")
 	reqId := ctx.Value(requestIDKey).(string)
-	fmt.Fprintf(rw, "accountId: %s, Request-ID: %s", reqId)
+	fmt.Fprintf(rw, "accountId: %s, Request-ID: %s", accountId, reqId)
 }
 
 func note(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	noteId := bone.GetValue(req, "id")
 	reqId := ctx.Value(requestIDKey).(string)
-	fmt.Fprintf(rw, "noteId: %s, Request-ID: %s", reqId)
+	fmt.Fprintf(rw, "noteId: %s, Request-ID: %s", noteId, reqId)
 }
 
 func simple(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-	value := ctx.Value("test").(string)
-	rw.Write([]byte("hello " + value))
+	value := ctx.Value("greeting").(string)
+	fmt.Fprintf(rw, "Hello, %s!!", value)
 }
 
 func main() {
@@ -78,8 +81,9 @@ func main() {
 	accountHandler := xhandler.HandlerFuncC(account)
 	noteHandler := xhandler.HandlerFuncC(note)
 
-	http.Handle("/simple", c.Handler(simpleHandler))
-	http.Handle("/note", c.Handler(noteHandler))
-	http.Handle("/account", c.Handler(accountHandler))
-	http.ListenAndServe(":8080", nil)
+	mux := bone.New()
+	mux.Get("/account/:id", c.Handler(accountHandler))
+	mux.Get("/note/:id", c.Handler(noteHandler))
+	mux.Get("/simple", c.Handler(simpleHandler))
+	http.ListenAndServe(":8080", mux)
 }
