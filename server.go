@@ -16,12 +16,11 @@ type key int
 
 const requestIDKey key = 0
 
-type myMiddleware struct {
+type requestIdMiddleware struct {
 	next xhandler.HandlerC
 }
 
-func (h myMiddleware) ServeHTTPC(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	ctx = context.WithValue(ctx, "greeting", "world")
+func (h requestIdMiddleware) ServeHTTPC(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	ctx = context.WithValue(ctx, requestIDKey, r.Header.Get("X-Request-ID"))
 	h.next.ServeHTTPC(ctx, w, r)
 }
@@ -62,8 +61,7 @@ func note(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 }
 
 func simple(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-	value := ctx.Value("greeting").(string)
-	fmt.Fprintf(rw, "Hello, %s!!", value)
+	fmt.Fprintf(rw, "Hello, world!!")
 }
 
 func main() {
@@ -73,7 +71,7 @@ func main() {
 	c.UseC(xhandler.CloseHandler)
 	c.UseC(xhandler.TimeoutHandler(2 * time.Second))
 	c.UseC(func(next xhandler.HandlerC) xhandler.HandlerC {
-		return myMiddleware{next: next}
+		return requestIdMiddleware{next: next}
 	})
 	c.Use(loggingMiddleware)
 
